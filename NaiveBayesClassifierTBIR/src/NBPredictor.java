@@ -302,30 +302,15 @@ public class NBPredictor {
 			if(meanPerFeatureAndClass.get(singleClass).get(Integer.valueOf(featureEntry[0])) != null){
 				
 				double v = Double.valueOf(featureEntry[1]);
-//				double mean = meanPerFeatureAndClass.get(singleClass).get(Integer.valueOf(featureEntry[0]));
-//				double variance = variancePerFeatureAndClass.get(singleClass).get(Integer.valueOf(featureEntry[0]));
-//				double normalProb = -0.5*Math.log(2*Math.PI*variance) - ((v-mean)*(v-mean)/(2*variance));
-				
-//				double total = 0;
-//				
-//				for(Double mean : meanPerFeatureAndClass.get(singleClass).values()){
-//					total = total  + mean * rawData.getClassTotalCounts().get(singleClass);
-//				}
 				
 				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0]));
 				double total = totalFeatureCountsPerClass.get(singleClass);
 				
 				prob = prob + Math.log((double)temp/(total))*v;
-//				
-//				
-//				if(variance == 0d){
-//					variance = 0.1d;
-//				}
-//				else{
-//					normalProb = -0.5*Math.log(2*Math.PI*variance) - ((v-mean)*(v-mean)/(2*variance));
-//					prob = prob + normalProb;
-//				}
 				
+				//remove mean and variance
+				//make sure I use the right final formula see multinomial in the slides. //so I have clean up to do
+				//clean up code - add instructions
 			}
 			else{
 				

@@ -27,9 +27,7 @@ public class NBFileProcessor {
 		System.out.println("Producing counts per vector from the train file.");
 		int total = textFileReader.getTextFileLines().size()-1;
 		for(int visitedLine = 0; visitedLine < textFileReader.getTextFileLines().size(); visitedLine++){
-			//for(int visitedLine = 0; visitedLine < 500; visitedLine++){
-			//read the elements separated by blank space
-
+		
 			String[] documentVectorData = textFileReader.getTextFileLines().get(visitedLine).split(" ");
 
 			processDocumentVectorData(documentVectorData);
