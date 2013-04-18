@@ -24,9 +24,6 @@ public class NBMain {
 		NBFileProcessor fileProcessor = new NBFileProcessor();
 		fileProcessor.processFile(args[0]);
 		
-		//produce the probabilities according from the counts
-		//NBProbabilities probs = new NBProbabilities(fileProcessor.getNBRawData());
-		
 		//create a new predictor instance based on the given probabilities
 		NBPredictor predictor = new NBPredictor(fileProcessor.getNBRawData());
 		

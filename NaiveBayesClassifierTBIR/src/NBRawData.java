@@ -7,16 +7,12 @@ public class NBRawData {
 
 	private LinkedHashMap<String,LinkedHashMap<Integer, Integer>> featureCountTotalsPerClass;
 
-	private LinkedHashMap<String,LinkedHashMap<Integer, Integer>> featureCountSquaredTotalsPerClass;
-
 	private LinkedHashMap<String, Integer> classTotalCounts;
 
 	private LinkedHashMap<Character, Integer> sectionTotalCounts;
 
 	public NBRawData() {
 		featureCountTotalsPerClass = new LinkedHashMap<String,LinkedHashMap<Integer, Integer>>() ;
-
-		featureCountSquaredTotalsPerClass = new LinkedHashMap<String,LinkedHashMap<Integer, Integer>>();
 
 		classTotalCounts = new LinkedHashMap<String, Integer>();
 
@@ -31,10 +27,6 @@ public class NBRawData {
 			//if there is no entry at feature count level for this class add an empty entry
 			if(featureCountTotalsPerClass.get(singleClass) == null){
 				featureCountTotalsPerClass.put(singleClass, new LinkedHashMap<Integer, Integer>());
-			}
-
-			if(featureCountSquaredTotalsPerClass.get(singleClass) == null){
-				featureCountSquaredTotalsPerClass.put(singleClass, new LinkedHashMap<Integer, Integer>());
 			}
 
 			//same for the class counts (initialise to 1)
@@ -67,8 +59,7 @@ public class NBRawData {
 
 	public void addFeatureCount(int featureIndex, int initialFeatureCount, String[] classes){
 		
-		//add one for the laplace filtering
-		int featureCount = initialFeatureCount+1; 
+		int featureCount = initialFeatureCount; 
 		
 		//add feature count at class level
 		for(String singleClass : classes){
@@ -81,14 +72,6 @@ public class NBRawData {
 				featureCountTotalsPerClass.get(singleClass).put(featureIndex, featureCountTotalsPerClass.get(singleClass).get(featureIndex) + featureCount);
 			}
 			
-			//if there is no entry for the feature add the entry initialised to featureCount squared
-			if(featureCountSquaredTotalsPerClass.get(singleClass).get(featureIndex) == null){
-				featureCountSquaredTotalsPerClass.get(singleClass).put(featureIndex, featureCount*featureCount);
-			}
-			else{
-				//otherwise add feature squared to the total of squared counts
-				featureCountSquaredTotalsPerClass.get(singleClass).put(featureIndex, featureCountSquaredTotalsPerClass.get(singleClass).get(featureIndex) + featureCount*featureCount);
-			}
 		}
 	}
 
@@ -102,18 +85,6 @@ public class NBRawData {
 			LinkedHashMap<String, LinkedHashMap<Integer, Integer>> featureCountTotalsPerClass) {
 		this.featureCountTotalsPerClass = featureCountTotalsPerClass;
 	}
-
-
-	public LinkedHashMap<String, LinkedHashMap<Integer, Integer>> getFeatureCountSquaredTotalsPerClass() {
-		return featureCountSquaredTotalsPerClass;
-	}
-
-
-	public void setFeatureCountSquaredTotalsPerClass(
-			LinkedHashMap<String, LinkedHashMap<Integer, Integer>> featureCountSquaredTotalsPerClass) {
-		this.featureCountSquaredTotalsPerClass = featureCountSquaredTotalsPerClass;
-	}
-
 
 	public LinkedHashMap<String, Integer> getClassTotalCounts() {
 		return classTotalCounts;

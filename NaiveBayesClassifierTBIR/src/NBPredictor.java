@@ -25,10 +25,6 @@ public class NBPredictor {
 	
 	private LinkedHashMap<String,Double> totalFeatureCountsPerClass;
 
-	private LinkedHashMap<String,LinkedHashMap<Integer, Double>> meanPerFeatureAndClass;
-
-	private LinkedHashMap<String,LinkedHashMap<Integer, Double>> variancePerFeatureAndClass;
-
 	LinkedHashMap<Character, Double> sectionProbs;
 
 	LinkedHashMap<String, Double> classProbs;
@@ -48,7 +44,7 @@ public class NBPredictor {
 
 		//we replace all probabilities by logarithms in order to simplify what comes afterwards
 		System.out.println("Computing means and variances per feature for each class.");
-		computeMeansAndVariances();
+		computeTotalCounts();
 
 		System.out.println("Computing log probabilities for each class and each section.");
 		computeClassAndSectionLogProbabilities();
@@ -56,55 +52,29 @@ public class NBPredictor {
 
 	}
 
-	private void computeMeansAndVariances(){
+	private void computeTotalCounts(){
 
 		LinkedHashMap<String, Integer> classTotalCounts = rawData.getClassTotalCounts(); 
 
-		meanPerFeatureAndClass = new LinkedHashMap<String,LinkedHashMap<Integer, Double>>();
-
-		variancePerFeatureAndClass = new LinkedHashMap<String,LinkedHashMap<Integer, Double>>();
-		
 		totalFeatureCountsPerClass = new LinkedHashMap<String,Double>();
 
-		//compute means
+		//compute total counts per class
 		for(String singleClass: classTotalCounts.keySet()){
-			LinkedHashMap<Integer, Double> meanPerFeatureForOneClass = new LinkedHashMap<Integer, Double>();
 			double totalFeatureCountsForOneClass = 0;
 			for(Integer feature: rawData.getFeatureCountTotalsPerClass().get(singleClass).keySet()){
-
-				//mean as the accumulated value for such feature and the number of times we observed the class
-				double mean = (double)rawData.getFeatureCountTotalsPerClass().get(singleClass).get(feature) /
-						(double)rawData.getClassTotalCounts().get(singleClass);
-
-				meanPerFeatureForOneClass.put(feature, mean);
+				
 				totalFeatureCountsForOneClass = totalFeatureCountsForOneClass + (double)rawData.getFeatureCountTotalsPerClass().get(singleClass).get(feature);
 			}
 			
-			meanPerFeatureAndClass.put(singleClass, meanPerFeatureForOneClass);
 			totalFeatureCountsPerClass.put(singleClass,totalFeatureCountsForOneClass);
 
 		}
-
-		//compute variances
-		for(String singleClass: classTotalCounts.keySet()){
-			LinkedHashMap<Integer, Double> variancePerFeatureForOneClass = new LinkedHashMap<Integer, Double>();
-			for(Integer feature: rawData.getFeatureCountTotalsPerClass().get(singleClass).keySet()){
-				
-				//the mean of the squared counts total
-				double variance = (double)rawData.getFeatureCountSquaredTotalsPerClass().get(singleClass).get(feature) /
-						(double)rawData.getClassTotalCounts().get(singleClass);
-				
-				//minus the square of the mean
-				variance = variance - meanPerFeatureAndClass.get(singleClass).get(feature)*meanPerFeatureAndClass.get(singleClass).get(feature);
-				
-				variancePerFeatureForOneClass.put(feature, variance);
-			}
-			variancePerFeatureAndClass.put(singleClass, variancePerFeatureForOneClass);
-		}
 		
+		
+		//compute the complete total counts (we already take laplace filtering into account)
 		totalCounts = 0;
 		for(String singleClass: classTotalCounts.keySet()){
-			totalCounts = totalCounts + rawData.getClassTotalCounts().get(singleClass);
+			totalCounts = totalCounts + rawData.getClassTotalCounts().get(singleClass) +  rawData.getClassTotalCounts().keySet().size() ;
 			
 		}
 	}
@@ -160,8 +130,6 @@ public class NBPredictor {
 		//compute the final probabilities
 		System.out.println("Computing probabilities per class per text file entry vectors.");
 		calculateFinalPredictionsAndSave();
-
-
 	}
 
 	private void deleteResultsFile(){
@@ -216,13 +184,6 @@ public class NBPredictor {
 
 		for(int documentIndex = 0; documentIndex < finalDocumentPredictions.size(); documentIndex++){
 			List<String> classes = new ArrayList<String>(finalDocumentPredictions.get(documentIndex).keySet());
-//			System.out.println(finalDocumentPredictions.get(documentIndex).get("a01b"));
-//			System.out.println(finalDocumentPredictions.get(documentIndex).get(classes.get(classes.size()-1) ));
-//			System.out.println(finalDocumentPredictions.get(documentIndex).get(classes.get(classes.size()-2) ));
-//			System.out.println(finalDocumentPredictions.get(documentIndex).get(classes.get(classes.size()-3) ));
-//			System.out.println(Arrays.toString(classes.toArray()));
-//			Scanner scan = new Scanner(System.in);
-//			scan.nextLine();
 			predictionResults.add(new String(classes.get(classes.size()-1) + " " + classes.get(classes.size()-2) + " " + classes.get(classes.size()-3)));
 		}
 	}
@@ -280,9 +241,6 @@ public class NBPredictor {
 				predictions.put(singleClass, classPredict);
 
 			}
-//			System.out.println(predictions);
-//			Scanner scan = new Scanner(System.in);
-//			scan.nextLine();
 			finalDocumentPredictions.add(predictions);	
 		}
 
@@ -299,41 +257,22 @@ public class NBPredictor {
 
 			String[] featureEntry = vectorEntry.split(":");		
 
-			if(meanPerFeatureAndClass.get(singleClass).get(Integer.valueOf(featureEntry[0])) != null){
+			if(rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0])) != null){
 				
 				double v = Double.valueOf(featureEntry[1]);
 				
-				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0]));
-				double total = totalFeatureCountsPerClass.get(singleClass);
-				
+				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0])) + 1d;
+				double total = totalFeatureCountsPerClass.get(singleClass) + rawData.getClassTotalCounts().keySet().size();
+			
+				//multinomial using laplace filtering
 				prob = prob + Math.log((double)temp/(total))*v;
-				
-				//remove mean and variance
-				//make sure I use the right final formula see multinomial in the slides. //so I have clean up to do
-				//clean up code - add instructions
 			}
 			else{
 				
-				//laplace filtering approach - act as if we had observed once this feature
+				//we considered a constant probability of observing a previously non-observed (for this class) feature
+				//which is the 1/totalObservedCounts (totalCounts already corrected with Laplace Filtering)
 				double v = Double.valueOf(featureEntry[1]);
-//				double mean = 1d/rawData.getClassTotalCounts().get(singleClass);
-//				double variance = 1d/rawData.getClassTotalCounts().get(singleClass) - mean*mean;
-//				double normalProb = -0.5*Math.log(2*Math.PI*variance) - ((v-mean)*(v-mean)/(2*variance));
-				
-//				double total = 0;
-////				
-//				for(Double mean : meanPerFeatureAndClass.get(singleClass).values()){
-//					total = total  + mean * rawData.getClassTotalCounts().get(singleClass) ;
-//				}
-//				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0]));
-				double total = totalFeatureCountsPerClass.get(singleClass)*rawData.getClassTotalCounts().keySet().size();
-				
-//				total = 0;
-//				for(String sc : rawData.getClassTotalCounts().keySet()){
-//					total = total + totalFeatureCountsPerClass.get(singleClass);
-//				}
-				
-				prob = prob + Math.log(1d/(totalCounts+1))*v;
+				prob = prob + Math.log(1d/(totalCounts))*v;
 				
 			}
 		}
