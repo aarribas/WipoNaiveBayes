@@ -1,8 +1,13 @@
 import java.util.LinkedHashMap;
-import java.util.Scanner;
 import java.util.Set;
 
 
+
+/**
+ * @author andresaan
+ *	This class stores the counts per class
+ *	and the total class and section counts
+ */
 public class NBRawData {
 
 	private LinkedHashMap<String,LinkedHashMap<Integer, Integer>> featureCountTotalsPerClass;
@@ -20,6 +25,10 @@ public class NBRawData {
 	}
 
 
+	/**
+	 * Adds a count per class that a document belongs to.
+	 * @param classes Array of classes that a document belongs to..
+	 */
 	public void addClassesCounts(String[] classes){
 
 		for(String singleClass : classes){
@@ -42,6 +51,7 @@ public class NBRawData {
 
 	}
 
+	
 	public void addSectionsCounts(Set<Character> sections){
 
 		for(Character singleSection : sections){
@@ -57,6 +67,12 @@ public class NBRawData {
 
 	}
 
+	/**
+	 * Adds a count per feature for all classes the doc belongs to.
+	 * @param featureIndex : id of the feature
+	 * @param initialFeatureCount : number of times the feature has been observed
+	 * @param classes : classes the document belongs to
+	 */
 	public void addFeatureCount(int featureIndex, int initialFeatureCount, String[] classes){
 		
 		int featureCount = initialFeatureCount; 

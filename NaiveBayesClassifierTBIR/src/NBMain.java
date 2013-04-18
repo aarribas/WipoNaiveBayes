@@ -20,14 +20,12 @@ public class NBMain {
 			System.exit(0);
 		}
 		
-		
+		//process the file - produces raw counts
 		NBFileProcessor fileProcessor = new NBFileProcessor();
 		fileProcessor.processFile(args[0]);
 		
-		//create a new predictor instance based on the given probabilities
+		//predict the classes given the counts and save to file
 		NBPredictor predictor = new NBPredictor(fileProcessor.getNBRawData());
-		
-		//run the predictions on the test file
 		predictor.predictAndSave(args[1], args[2]);
 	
 	}

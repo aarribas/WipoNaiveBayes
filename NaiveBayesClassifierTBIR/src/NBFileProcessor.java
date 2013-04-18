@@ -1,17 +1,25 @@
 import java.io.FileNotFoundException;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Set;
 
 import org.aarribas.io.TextFileReader;
 
 
+/**
+ * @author andresaan
+ * NBFileProcessor reads the train file with name filename and calls the methods in rawData to update the counts.
+ */
 public class NBFileProcessor {
 
 	private NBRawData rawData = new NBRawData();
 
 	TextFileReader textFileReader = new TextFileReader();
 
+	/**
+	 * Reads the file and processes each line assuming one line represents the data vector for a document
+	 * (Classes separated by semi colon, then word counts given as id:count and separated by blank space)
+	 * @param filename : name of train file
+	 */
 	public void processFile(String filename){
 
 		//try to read the file
@@ -25,7 +33,6 @@ public class NBFileProcessor {
 
 		//process the content
 		System.out.println("Producing counts per vector from the train file.");
-		int total = textFileReader.getTextFileLines().size()-1;
 		for(int visitedLine = 0; visitedLine < textFileReader.getTextFileLines().size(); visitedLine++){
 		
 			String[] documentVectorData = textFileReader.getTextFileLines().get(visitedLine).split(" ");
@@ -35,6 +42,10 @@ public class NBFileProcessor {
 
 	}
 
+	/**
+	 * This method processes one vector of counts for a document.
+	 * @param documentVectorData
+	 */
 	private void processDocumentVectorData(String[] documentVectorData){
 
 		//first extract the classes and update the counts

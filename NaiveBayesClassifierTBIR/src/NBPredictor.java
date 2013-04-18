@@ -5,23 +5,29 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 
 import org.aarribas.io.TextFileReader;
 import org.aarribas.io.TextFileSaver;
 
 
+/**
+ * @author andresaan
+ * This class is in charge of processing the test file and producing the predictions.
+ */
 public class NBPredictor {
 
 	private NBRawData rawData;
 	
 	double totalCounts;
+	
+	double numberOfDifferentFeatures;
 	
 	private LinkedHashMap<String,Double> totalFeatureCountsPerClass;
 
@@ -39,19 +45,25 @@ public class NBPredictor {
 
 	private String resultsFilename;
 
+	/**
+	 * Constructor. Expects NBRawData which shall contain the raw counts to base the predictions on
+	 * @param rawData
+	 */
 	public NBPredictor(NBRawData rawData){
 		this.rawData = rawData;
 
-		//we replace all probabilities by logarithms in order to simplify what comes afterwards
-		System.out.println("Computing means and variances per feature for each class.");
+		System.out.println("Computing total counts per class, and overall.");
 		computeTotalCounts();
 
-		System.out.println("Computing log probabilities for each class and each section.");
+		System.out.println("Computing log probabilities per class and section.");
 		computeClassAndSectionLogProbabilities();
 
 
 	}
 
+	/**
+	 * Computes absolute total number of counts and total number of different counts.
+	 */
 	private void computeTotalCounts(){
 
 		LinkedHashMap<String, Integer> classTotalCounts = rawData.getClassTotalCounts(); 
@@ -71,14 +83,24 @@ public class NBPredictor {
 		}
 		
 		
-		//compute the complete total counts (we already take laplace filtering into account)
+		//compute the complete total counts
 		totalCounts = 0;
 		for(String singleClass: classTotalCounts.keySet()){
-			totalCounts = totalCounts + rawData.getClassTotalCounts().get(singleClass) +  rawData.getClassTotalCounts().keySet().size() ;
+			totalCounts = totalCounts + rawData.getClassTotalCounts().get(singleClass);
 			
 		}
+		
+		Set<Integer> featureIds  = new HashSet<Integer>();
+		for(String sClass: classTotalCounts.keySet()){
+		
+			featureIds.addAll(rawData.getFeatureCountTotalsPerClass().get(sClass).keySet());
+		}
+		numberOfDifferentFeatures = featureIds.size();
 	}
 
+	/**
+	 * Pre-computes the log probabilities per section and per class.  
+	 */
 	private void computeClassAndSectionLogProbabilities(){
 
 		//save the log probability per class
@@ -114,6 +136,11 @@ public class NBPredictor {
 
 	}
 
+	/**
+	 * Runs the prediction for each document vector in the test file and saves the prediction to the results file.
+	 * @param testsFilename
+	 * @param resultsFilename
+	 */
 	public void predictAndSave(String testsFilename, String resultsFilename){
 
 		//prepare structures to save the predictions per document
@@ -149,6 +176,10 @@ public class NBPredictor {
 		}
 	}
 
+	/**
+	 * Saves a 3 class prediction per document to the results file.
+	 *
+	 */
 	private void savePredictions(){
 		//sort the predictions in descending order so that the final 3 predictions are the most probable ones
 		System.out.println("Sorting predictions.");
@@ -171,8 +202,11 @@ public class NBPredictor {
 
 	}
 
+	/**
+	 * Sorts a set of predictions (class and computed probability) in ascending order
+	 */
 	private void sortFinalDocumentPredictions(){
-		//sort each map
+		//sort each map in ascending order
 		for(int documentIndex = 0; documentIndex < finalDocumentPredictions.size(); documentIndex++){
 			finalDocumentPredictions.set(documentIndex, sortByComparator(finalDocumentPredictions.get(documentIndex)));
 		}
@@ -181,7 +215,8 @@ public class NBPredictor {
 	private void populatePredictionResults(){
 		//always created from scratch
 		predictionResults = new LinkedList<String>();
-
+		
+		//for all predictions per doc save the three most probable classes
 		for(int documentIndex = 0; documentIndex < finalDocumentPredictions.size(); documentIndex++){
 			List<String> classes = new ArrayList<String>(finalDocumentPredictions.get(documentIndex).keySet());
 			predictionResults.add(new String(classes.get(classes.size()-1) + " " + classes.get(classes.size()-2) + " " + classes.get(classes.size()-3)));
@@ -201,14 +236,23 @@ public class NBPredictor {
 		return finalDocumentPredictions;
 	}
 
+	/**
+	 * This method will process each line in the test file
+	 * It decomposes the line into expected class and the vector counts
+	 * Then based on the counts, will compute the probability for a given class given the observation.
+	 * The section prediction is used, as the class prediction implies a section assumption.
+	 * P(A|W) = Prod(P(Wi|C)) * P(C|S) * P(S) / P(W)
+	 * P(W) is the same for all classes hence, we can ignore it when applying Naive Bayes.
+	 */
 	private void calculateFinalPredictionsAndSave(){
-
+		
+		//process each line of the text file
 		for(int lineIndex = 0; lineIndex < textFileReader.getTextFileLines().size(); lineIndex++){
 
 			//every 1000 lines we save the results so far to the results file
 			if(lineIndex !=0 && lineIndex % 1000 == 0){	
 
-				System.out.println("Saving partial results.");
+				System.out.println("--> Saving results so far:");
 
 				//save predictions so far
 				savePredictions();
@@ -217,16 +261,18 @@ public class NBPredictor {
 				finalDocumentPredictions = new ArrayList<Map<String, Double>>();
 			}
 
+			//get the line
 			String line = textFileReader.getTextFileLines().get(lineIndex);
-
-			System.out.println("Predicting line " + lineIndex + " of " + textFileReader.getTextFileLines().size() );
+			
+			//inform of the status
+			System.out.println("Predicting line " + lineIndex + " of " + (textFileReader.getTextFileLines().size()-1) );
 
 			//prepare to store the predictions per class for this documentVector
 			Map <String,Double> predictions = new  LinkedHashMap<String, Double>();
 
 			String[] vectorEntries = line.split(" ");
 
-			//remove first element which normally contains a class
+			//remove first element which is precisely the class to predict
 			vectorEntries = Arrays.copyOfRange(vectorEntries, 1, vectorEntries.length);
 
 			for(String singleClass: classProbs.keySet()){
@@ -249,6 +295,12 @@ public class NBPredictor {
 
 	}
 
+	/**
+	 *  Compute given the observed vectorEntries/count and a given class, the probabiblity for that class.
+	 * @param singleClass
+	 * @param vectorEntries
+	 * @return
+	 */
 	private double calculateLogProbGivenClassAndVector(String singleClass, String[] vectorEntries){
 
 		double prob = 0d;
@@ -256,23 +308,25 @@ public class NBPredictor {
 		for(String vectorEntry : vectorEntries){
 
 			String[] featureEntry = vectorEntry.split(":");		
-
-			if(rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0])) != null){
-				
-				double v = Double.valueOf(featureEntry[1]);
-				
-				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0])) + 1d;
-				double total = totalFeatureCountsPerClass.get(singleClass) + rawData.getClassTotalCounts().keySet().size();
 			
-				//multinomial using laplace filtering
+			
+			if(rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0])) != null){
+				//if the given feature was observed at training time for this class
+				//we take the multinomial approach
+		
+				double v = Double.valueOf(featureEntry[1]);
+				double temp = rawData.getFeatureCountTotalsPerClass().get(singleClass).get(Integer.valueOf(featureEntry[0]))+1d;
+				double total = totalFeatureCountsPerClass.get(singleClass) + rawData.getFeatureCountTotalsPerClass().get(singleClass).keySet().size();
+				
 				prob = prob + Math.log((double)temp/(total))*v;
 			}
 			else{
 				
-				//we considered a constant probability of observing a previously non-observed (for this class) feature
-				//which is the 1/totalObservedCounts (totalCounts already corrected with Laplace Filtering)
+				//if feature was not observed for the current class: consider a constant probability 
+				//of observing a previously non-observed feature
+				
 				double v = Double.valueOf(featureEntry[1]);
-				prob = prob + Math.log(1d/(totalCounts))*v;
+				prob = prob + Math.log(1d/(totalCounts + numberOfDifferentFeatures))*v;
 				
 			}
 		}
@@ -280,6 +334,7 @@ public class NBPredictor {
 		return prob;
 
 	}
+	
 
 	private static Map sortByComparator(Map unsortMap) {
 
